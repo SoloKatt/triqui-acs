@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Triqui</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        form { margin-top: 20px; }
+        input { margin: 5px; padding: 8px; }
+        button { padding: 10px; }
+        #gameArea { display: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Juego de Triqui</h1>
+
+    <!-- Formulario de registro -->
+    <div id="registerForm">
+        <h2>Registro</h2>
+        <form id="register">
+            <input type="text" id="registerUsername" placeholder="Nombre de usuario" required>
+            <button type="submit">Registrar</button>
+        </form>
+        <p>¿Ya tienes cuenta? <a href="#" id="showLogin">Iniciar sesión</a></p>
+    </div>
+
+    <!-- Formulario de login -->
+    <div id="loginForm" style="display:none;">
+        <h2>Iniciar sesión</h2>
+        <form id="login">
+            <input type="text" id="loginUsername" placeholder="Nombre de usuario" required>
+            <button type="submit">Entrar</button>
+        </form>
+        <p>¿No tienes cuenta? <a href="#" id="showRegister">Registrate</a></p>
+    </div>
+
+    <!-- Área del juego -->
+    <div id="gameArea">
+        <h2>Bienvenido al juego, <span id="usernameDisplay"></span></h2>
+        <p>¡Estás listo para jugar!</p>
+        <!-- Aquí pondrás la lógica del juego de Triqui -->
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Conexión con el servidor de WebSockets
+        const socket = io()
+
+        // Escuchar el evento 'error' cuando el servidor rechaza la conexión
+        socket.on('error', (message) => {
+            alert(message);  // Muestra el mensaje de que el servidor está lleno
+            window.location.href = '/full';  // Redirige a una página donde se informa que el servidor está lleno
+        });
+
+        // Elementos del DOM
+        const registerForm = document.getElementById('register');
+        const registerUsername = document.getElementById('registerUsername');
+        const loginForm = document.getElementById('login');
+        const loginUsername = document.getElementById('loginUsername');
+        const gameArea = document.getElementById('gameArea');
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const registerDiv = document.getElementById('registerForm');
+        const loginDiv = document.getElementById('loginForm');
+
+        // Función para mostrar mensajes de error
+        const showError = (message) => {
+            alert(message);
+        }
+
+        // Manejar el registro
+        registerForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = registerUsername.value;
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username }),
+                });
+
+                const data = await response.json();
+                if (response.status === 201) {
+                    alert('Registro exitoso');
+                    registerDiv.style.display = 'none';
+                    loginDiv.style.display = 'block';
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                showError('Error en el registro');
+            }
+        });
+
+        // Manejar el login
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = loginUsername.value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username }),
+                });
+
+                const data = await response.json();
+                if (response.status === 200) {
+                    socket.emit('login', username);
+                    usernameDisplay.textContent = username;
+                    loginDiv.style.display = 'none';
+                    gameArea.style.display = 'block';
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                showError('Error al iniciar sesión');
+            }
+        });
+
+        // Mostrar formulario de login
+        document.getElementById('showLogin').addEventListener('click', (event) => {
+            event.preventDefault();
+            registerDiv.style.display = 'none';
+            loginDiv.style.display = 'block';
+        });
+
+        // Mostrar formulario de registro
+        document.getElementById('showRegister').addEventListener('click', (event) => {
+            event.preventDefault();
+            loginDiv.style.display = 'none';
+            registerDiv.style.display = 'block';
+        });
+    </script>
+</body>
+</html>

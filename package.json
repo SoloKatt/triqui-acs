@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Juego de Triqui desarrollado con Node.js, Socket.IO, HTML, CSS y JavaScript. Permite que múltiples clientes se conecten simultáneamente al mismo servidor para jugar en tiempo real. Perfecto para practicar tecnologías de tiempo real y conceptos básicos de desarrollo web.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
+    "dev": "node --watch ./server/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
