@@ -1,0 +1,5 @@
+# Ignorar archivos sensibles
+.env
+
+# Otros archivos y carpetas comunes a ignorar
+node_modules/
