@@ -36,8 +36,10 @@ await db.execute(`
     )
 `)
 
-app.use(express.json())
 app.use(logger('dev'))
+app.use(express.json())
+// Para que funcione el css del cliente
+app.use(express.static('client'));
 
 // Ruta para registrar un nuevo usuario
 app.post('/register', async (req, res) => {
@@ -143,8 +145,10 @@ io.on('connection', async (socket) => {
     })
 })
 
+
+
 app.get('/full', (req, res) => {
-    res.send('<h1>El servidor está lleno. Intenta más tarde.</h1>');
+    res.sendFile(process.cwd() + '/client/full.html');
 });
 
 app.get('/', (req, res) => {

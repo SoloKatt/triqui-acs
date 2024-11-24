@@ -4,54 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Triqui</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        form { margin-top: 20px; }
-        input { margin: 5px; padding: 8px; }
-        button { padding: 10px; }
-        #gameArea { display: none; margin-top: 20px; }
-    </style>
+    <link rel="stylesheet" href="./styles/form.css">
 </head>
 <body>
-    <h1>Juego de Triqui</h1>
+    <div class="container">
+        <header>
+            <h1>Juego de Triqui</h1>
+        </header>
 
-    <!-- Formulario de registro -->
-    <div id="registerForm">
-        <h2>Registro</h2>
-        <form id="register">
-            <input type="text" id="registerUsername" placeholder="Nombre de usuario" required>
-            <button type="submit">Registrar</button>
-        </form>
-        <p>¿Ya tienes cuenta? <a href="#" id="showLogin">Iniciar sesión</a></p>
-    </div>
+        <!-- Formulario de registro -->
+        <div id="registerForm" class="form-container" style="display: none;">
+            <h2 class="form-title">Registro</h2>
+            <form id="register" class="form">
+                <input type="text" id="registerUsername" class="form-input" placeholder="Nombre de usuario" required>
+                <button type="submit" class="form-button">Registrar</button>
+            </form>
+            <p class="form-text">
+                ¿Ya tienes cuenta? <a href="#" id="showLogin" class="form-link">Iniciar sesión</a>
+            </p>
+        </div>
 
-    <!-- Formulario de login -->
-    <div id="loginForm" style="display:none;">
-        <h2>Iniciar sesión</h2>
-        <form id="login">
-            <input type="text" id="loginUsername" placeholder="Nombre de usuario" required>
-            <button type="submit">Entrar</button>
-        </form>
-        <p>¿No tienes cuenta? <a href="#" id="showRegister">Registrate</a></p>
-    </div>
+        <!-- Formulario de inicio de sesión -->
+        <div id="loginForm" class="form-container">
+            <h2 class="form-title">Iniciar sesión</h2>
+            <form id="login" class="form">
+                <input type="text" id="loginUsername" class="form-input" placeholder="Nombre de usuario" required>
+                <button type="submit" class="form-button">Entrar</button>
+            </form>
+            <p class="form-text">
+                ¿No tienes cuenta? <a href="#" id="showRegister" class="form-link">Regístrate</a>
+            </p>
+        </div>
 
-    <!-- Área del juego -->
-    <div id="gameArea">
-        <h2>Bienvenido al juego, <span id="usernameDisplay"></span></h2>
-        <p>¡Estás listo para jugar!</p>
-        <!-- Aquí pondrás la lógica del juego de Triqui -->
+        <!-- Área del juego -->
+        <div id="gameArea" class="game-container" style="display: none;">
+            <h2>Bienvenido al juego, <span id="usernameDisplay"></span></h2>
+            <p>¡Estás listo para jugar!</p>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // Conexión con el servidor de WebSockets
-        const socket = io()
-
-        // Escuchar el evento 'error' cuando el servidor rechaza la conexión
-        socket.on('error', (message) => {
-            alert(message);  // Muestra el mensaje de que el servidor está lleno
-            window.location.href = '/full';  // Redirige a una página donde se informa que el servidor está lleno
-        });
+        const socket = io();
 
         // Elementos del DOM
         const registerForm = document.getElementById('register');
@@ -63,49 +58,59 @@
         const registerDiv = document.getElementById('registerForm');
         const loginDiv = document.getElementById('loginForm');
 
-        // Función para mostrar mensajes de error
-        const showError = (message) => {
-            alert(message);
-        }
+        // Función para mostrar mensajes
+        const showMessage = (message) => alert(message);
+
+        // Función para alternar visibilidad de secciones
+        const showSection = (sectionToShow) => {
+            [registerDiv, loginDiv, gameArea].forEach(section => {
+                section.style.display = section === sectionToShow ? 'block' : 'none';
+            });
+        };
 
         // Manejar el registro
         registerForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const username = registerUsername.value;
+            const username = registerUsername.value.trim();
+
+            if (!username) {
+                showMessage('El nombre de usuario es obligatorio.');
+                return;
+            }
 
             try {
                 const response = await fetch('/register', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username }),
                 });
 
                 const data = await response.json();
                 if (response.status === 201) {
-                    alert('Registro exitoso');
-                    registerDiv.style.display = 'none';
-                    loginDiv.style.display = 'block';
+                    showMessage('Registro exitoso. Por favor, inicia sesión.');
+                    showSection(loginDiv);
                 } else {
-                    showError(data.message);
+                    showMessage(data.message || 'Error en el registro.');
                 }
-            } catch (error) {
-                showError('Error en el registro');
+            } catch {
+                showMessage('Error al conectar con el servidor.');
             }
         });
 
-        // Manejar el login
+        // Manejar el inicio de sesión
         loginForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const username = loginUsername.value;
+            const username = loginUsername.value.trim();
+
+            if (!username) {
+                showMessage('El nombre de usuario es obligatorio.');
+                return;
+            }
 
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username }),
                 });
 
@@ -113,28 +118,30 @@
                 if (response.status === 200) {
                     socket.emit('login', username);
                     usernameDisplay.textContent = username;
-                    loginDiv.style.display = 'none';
-                    gameArea.style.display = 'block';
+                    showSection(gameArea);
                 } else {
-                    showError(data.message);
+                    showMessage(data.message || 'Error al iniciar sesión.');
                 }
-            } catch (error) {
-                showError('Error al iniciar sesión');
+            } catch {
+                showMessage('Error al conectar con el servidor.');
             }
         });
 
-        // Mostrar formulario de login
+        // Alternar entre formularios
         document.getElementById('showLogin').addEventListener('click', (event) => {
             event.preventDefault();
-            registerDiv.style.display = 'none';
-            loginDiv.style.display = 'block';
+            showSection(loginDiv);
         });
 
-        // Mostrar formulario de registro
         document.getElementById('showRegister').addEventListener('click', (event) => {
             event.preventDefault();
-            loginDiv.style.display = 'none';
-            registerDiv.style.display = 'block';
+            showSection(registerDiv);
+        });
+
+        // Manejo de errores de conexión
+        socket.on('error', (message) => {
+            showMessage(message || 'Error desconocido.');
+            window.location.href = '/full';
         });
     </script>
 </body>
