@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ya estás conectado</title>
+        <link rel = "stylesheet" href = "./styles/duplicateuser.css">
+    </head>
+    <body>
+        <section id = "user-rejected" class = "container">
+            <div class = "triqui-board">
+                <div class="line vertical"></div>
+                <div class="line vertical"></div>
+                <div class="line horizontal"></div>
+                <div class="line horizontal"></div>
+                <div class="marker">
+                    <div class="marker x">X</div>
+                    <div class="marker x">X</div>
+                    <div class="marker x">X</div>
+                    <div class="marker x">X</div>
+                    <div class="marker x">X</div>
+                </div>
+            </div>
+            <div class="right-panel">
+                <div class="message-container">
+                    <h1 class="title">Ya estás conectado</h1>
+                    <p class="description">No puedes unirte de nuevo mientras estés en el servidor.</p>
+                    <!-- <button class="btn-retry" onclick="window.location.href='/index.html'">Atrás</button> -->
+                    <button class="btn-retry" onclick="window.history.back()">Atrás</button>
+                </div>
+            </div>
+        </section>
+    </body>
+</html>

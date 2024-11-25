@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triqui</title>
+    <link rel="stylesheet" href="./styles/game.css">
+</head>
+<body>
+    <div id="gameContainer" style="display: none;">
+        <h2>Jugador: <span id="playerUsername"></span></h2>
+        <h3 id="turnIndicator">Esperando asignación...</h3>
+        <div class="board">
+            <!-- Se generarán las casillas dinámicamente -->
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const gameContainer = document.getElementById('gameContainer');
+        const turnIndicator = document.getElementById('turnIndicator');
+        const boardContainer = document.querySelector('.board');
+        const playerUsername = document.getElementById('playerUsername');
+
+        let playerSymbol = ''; // Símbolo del jugador (X u O)
+        let isMyTurn = false;  // Indica si es el turno del jugador
+
+        // Inicializar el tablero
+        const initBoard = () => {
+            boardContainer.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i; // Identificador único para cada celda
+                cell.addEventListener('click', handleCellClick);
+                boardContainer.appendChild(cell);
+            }
+        };
+
+        // Manejar el clic en una celda
+        const handleCellClick = (event) => {
+            if (!isMyTurn) return; // No permitir jugar fuera de turno
+            const cell = event.target;
+
+            if (cell.textContent) return; // No permitir jugar en una celda ocupada
+
+            // Enviar el movimiento al servidor
+            const cellIndex = cell.dataset.index;
+            socket.emit('make move', { index: cellIndex, symbol: playerSymbol });
+
+            // Actualizar el turno localmente (opcional, será validado por el servidor)
+            cell.textContent = playerSymbol;
+            isMyTurn = false;
+            turnIndicator.textContent = 'Esperando al oponente...';
+        };
+
+        // Recibir asignación inicial del servidor
+        socket.on('start game', (data) => {
+            gameContainer.style.display = 'block'; // Mostrar el tablero
+            playerUsername.textContent = data.username; // Mostrar el nombre del jugador
+            playerSymbol = data.symbol; // Asignar el símbolo del jugador
+            isMyTurn = data.isMyTurn; // Determinar si inicia el juego
+            turnIndicator.textContent = isMyTurn
+                ? 'Tu turno, juega!'
+                : 'Esperando al oponente...';
+
+            initBoard(); // Inicializar el tablero
+        });
+
+        // Actualizar el tablero con movimientos del oponente
+        socket.on('opponent move', (data) => {
+            const { index, symbol } = data;
+            const cell = boardContainer.querySelector(`[data-index='${index}']`);
+            if (cell) cell.textContent = symbol;
+
+            // Actualizar el turno
+            isMyTurn = true;
+            turnIndicator.textContent = 'Tu turno, juega!';
+        });
+
+        // Notificar el fin del juego
+        socket.on('game over', (data) => {
+            const { winner } = data;
+            turnIndicator.textContent = winner
+                ? `¡Ganador: ${winner}!`
+                : '¡Empate!';
+        });
+    </script>
+</body>
+</html>

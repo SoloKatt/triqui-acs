@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./styles/form.css">
 </head>
 <body>
-    <div class = "triqui-board">
+    <div class = "triqui-board" id="triquiBoard">
         <div class="line vertical"></div>
         <div class="line vertical"></div>
         <div class="line horizontal"></div>
@@ -25,7 +25,7 @@
     </div>
     <div class="container">
         <header>
-            <h1>Juego de Triqui</h1>
+            <h1>Triqui</h1>
         </header>
         
         <!-- Formulario de registro -->
@@ -53,9 +53,11 @@
         </div>
 
         <!-- Área del juego -->
-        <div id="gameArea" class="game-container" style="display: none;">
-            <h2>Bienvenido al juego, <span id="usernameDisplay"></span></h2>
-            <p>¡Estás listo para jugar!</p>
+        <div id="lobby" class="game-container" style="display: none;">
+            <h2>Bienvenido jugador: <span id="usernameDisplay"></span></h2>
+            <p class="form-text">
+                ¿No tienes cuenta? <a href="#" id="showRegister" class="form-link">Regístrate</a>
+            </p>
         </div>
     </div>
 
@@ -69,20 +71,38 @@
         const registerUsername = document.getElementById('registerUsername');
         const loginForm = document.getElementById('login');
         const loginUsername = document.getElementById('loginUsername');
-        const gameArea = document.getElementById('gameArea');
+        const lobby = document.getElementById('lobby');
         const usernameDisplay = document.getElementById('usernameDisplay');
         const registerDiv = document.getElementById('registerForm');
         const loginDiv = document.getElementById('loginForm');
+        const triquiBoard = document.getElementById('triquiBoard'); // Tablero del triqui
 
         // Función para mostrar mensajes
         const showMessage = (message) => alert(message);
 
         // Función para alternar visibilidad de secciones
         const showSection = (sectionToShow) => {
-            [registerDiv, loginDiv, gameArea].forEach(section => {
+            [registerDiv, loginDiv, lobby].forEach(section => {
                 section.style.display = section === sectionToShow ? 'block' : 'none';
             });
+            // Mostrar el tablero solo en las pantallas de registro y login
+            if (sectionToShow === registerDiv || sectionToShow === loginDiv) {
+                triquiBoard.style.display = 'block'; // Mostrar el tablero
+            } else {
+                triquiBoard.style.display = 'none'; // Ocultar el tablero
+            }
         };
+
+        // Alternar entre formularios
+        document.getElementById('showLogin').addEventListener('click', (event) => {
+            event.preventDefault();
+            showSection(loginDiv);
+        });
+
+        document.getElementById('showRegister').addEventListener('click', (event) => {
+            event.preventDefault();
+            showSection(registerDiv);
+        });
 
         // Manejar el registro
         registerForm.addEventListener('submit', async (event) => {
@@ -134,7 +154,7 @@
                 if (response.status === 200) {
                     socket.emit('login', username);
                     usernameDisplay.textContent = username;
-                    showSection(gameArea);
+                    showSection(lobby);
                 } else {
                     showMessage(data.message || 'Error al iniciar sesión.');
                 }
@@ -143,21 +163,50 @@
             }
         });
 
-        // Alternar entre formularios
-        document.getElementById('showLogin').addEventListener('click', (event) => {
-            event.preventDefault();
-            showSection(loginDiv);
-        });
-
-        document.getElementById('showRegister').addEventListener('click', (event) => {
-            event.preventDefault();
-            showSection(registerDiv);
-        });
+        
 
         // Manejo de errores de conexión
-        socket.on('error', (message) => {
+        socket.on('error', (error) => {
+            const { type, message } = error;
+
             showMessage(message || 'Error desconocido.');
-            window.location.href = '/full';
+
+            if (type === 'server_full') {
+                window.location.href = '/full';
+            }
+            if (type === 'duplicate_user') {
+                window.location.href = '/duplicateuser'
+            }
+        });
+
+        // Elementos del DOM
+        const waitingDiv = document.createElement('div');
+        waitingDiv.id = 'waitingRoom';
+        waitingDiv.style.display = 'none';
+        waitingDiv.innerHTML = '<h2>Esperando a otro jugador...</h2>';
+        document.body.appendChild(waitingDiv);
+
+        // Mostrar la sala de espera
+        socket.on('waiting', (data) => {
+            waitingDiv.style.display = 'block';
+            lobby.style.display = 'none';
+            showMessage(data.message);
+        });
+
+        // Iniciar el juego cuando ambos jugadores estén conectados
+        socket.on('start game', (data) => {
+            waitingDiv.style.display = 'none';
+            lobby.style.display = 'none';
+
+            // Aquí puedes cargar la zona de juego
+            showMessage(data.message);
+            console.log('¡El juego ha comenzado!');
+        });
+
+        // Evento cuando inicia el juego (ocultar el tablero)
+        socket.on('start game', (data) => {
+            showSection(lobby); // Cambia a la zona de juego
+            showMessage(data.message);
         });
     </script>
 </body>

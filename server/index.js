@@ -103,32 +103,73 @@ app.post('/login', async (req, res) => {
 
 let connectedusers = 0;
 const MAX_USERS = 2;
+const gamingusers = new Map();
+let waitingPlayer = null;
 
 io.on('connection', async (socket) => {
 
     // Aquí el jugador se autentica con su nombre de usuario cuando se conecta
     socket.on('login', (username) => {
-        socket.handshake.auth.username = username
-        console.log(`Usuario conectado: ${username}`)
-    });
+        // Verificar si el usuario ya está conectado
+        if (Array.from(gamingusers.values()).includes(username)) {
+            socket.emit('error', { type: 'duplicate_user', message: 'Este usuario ya está conectado.' });
+            console.log(`Intento de conexión rechazado para el usuario: ${username}`);
+            return;
+        }
+        socket.handshake.auth.username = username;
+        gamingusers.set(socket.id, username);
+        connectedusers++;
+        console.log(`Usuario conectado: ${username}`);
+        console.log(`Usuarios conectados: ${connectedusers}`);
 
+        // Manejamos la sala de espera
+        if (waitingPlayer === null) {
+            waitingPlayer = socket;
+            socket.emit('waiting', { message: 'Esperando a otro jugador...' });
+            console.log(`Jugador ${username} está esperando oponente.`);
+        } else {
+            const opponent = waitingPlayer;
+            const opponentUsername = gamingusers.get(opponent.id);
+            waitingPlayer = null; // Vaciar la sala de espera
+            const room = `game-${socket.id}-${opponent.id}`;
+            socket.join(room);
+            opponent.join(room);
+            io.to(room).emit('start game', { message: 'Ambos jugadores conectados. ¡Comienza el juego!' });
+            console.log(`Sala creada: ${room} entre ${username} y ${opponentUsername}`);
+            if (players.length === 2) {
+            assignRoles();
+
+            // Notificar a ambos jugadores que serán redirigidos al juego
+            players.forEach((player, index) => {
+                io.to(player.id).emit('redirect', `/game.html`);
+            });
+        }
+        }
+    });
     // Verificar el número de conexiones actuales
     if (connectedusers >= MAX_USERS) {
-        socket.emit('error', 'El servidor está lleno. Intenta más tarde.');
-        socket.disconnect();  // Desconectar al usuario si el límite ha sido alcanzado
+        socket.emit('error', { type: 'server_full', message: 'El servidor está lleno. Intenta más tarde.' });
         console.log('Conexión rechazada: límite de usuarios alcanzado');
         return;
     }
-
-    // Incrementar el contador de usuarios conectados
-    connectedusers++;
-    console.log(`Usuarios conectados: ${connectedusers}`);
-
-    socket.on('disconnect', () => {
-        connectedusers--;  // Decrementar el contador al desconectarse un usuario
-        console.log(`Un usuario se ha desconectado. Usuarios conectados: ${connectedusers}`);
+    
+    socket.on('disconnect', (username) => {
+        
+        const disconnectedUser = gamingusers.get(socket.id);
+        if(disconnectedUser) {
+            console.log(`El usuario: ${disconnectedUser} se ha desconectado`)
+            gamingusers.delete(socket.id);
+            connectedusers--;
+            console.log(`Un usuario se ha desconectado. Usuarios conectados: ${connectedusers}`);
+        }
+        if (waitingPlayer === socket) {
+            waitingPlayer = null;
+            console.log('Jugador en espera desconectado.');
+        }
     });
-
+    if(connectedusers < 0) {
+        connectedusers = 0;
+    }
     socket.on('make move', async (move) => {
         let result
         const player = socket.handshake.auth.username ?? 'anonymous'
@@ -146,6 +187,9 @@ io.on('connection', async (socket) => {
 })
 
 
+app.get('/duplicateuser', (req, res) => {
+    res.sendFile(process.cwd() + '/client/duplicateuser.html');
+});
 
 app.get('/full', (req, res) => {
     res.sendFile(process.cwd() + '/client/full.html');
