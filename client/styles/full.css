@@ -1,84 +1,132 @@
 /* full.css */
-body {
+
+/* Reset básico */
+body, html {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+/* Estilo general */
+body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #000000; /* Fondo negro */
-    color: #ffffff; /* Texto blanco */
+    background-color: #121212;
+    color: whitesmoke;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
 }
-
 .container {
     display: flex;
     flex-direction: row;
-    gap: 20px;
-    width: 80%;
+    width: 100%;
     max-width: 900px;
 }
-
-.left-panel {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.triqui-board {
-    display: grid;
-    grid-template-rows: repeat(3, 100px);
-    grid-template-columns: repeat(3, 100px);
-    gap: 5px;
-}
-
-.cell {
-    width: 100px;
-    height: 100px;
-    border: 2px solid #ffffff; /* Líneas blancas */
-}
-
 .right-panel {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
 }
-
 .message-container {
-    background: #1d1d1f; /* Fondo gris oscuro */
-    padding: 40px;
-    border-radius: 12px;
+    background: #1e1e1e; /* Fondo gris oscuro */
+    padding: 50px;
+    border-radius: 15px;
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
     max-width: 400px;
     width: 100%;
 }
-
 .title {
-    font-size: 24px;
+    font-size: 32px;
     font-weight: 600;
     margin-bottom: 16px;
-    color: #ffffff;
+    color: whitesmoke;
 }
-
 .description {
-    font-size: 16px;
+    font-size: 20px;
     margin-bottom: 24px;
-    color: #d1d1d6;
+    color: white;
 }
 
 .btn-retry {
-    font-size: 16px;
+    font-size: 20px;
     padding: 10px 20px;
     border: none;
     border-radius: 8px;
-    background: #007aff;
-    color: #ffffff;
+    background: darkred;
+    color: whitesmoke;
     cursor: pointer;
     transition: background 0.3s;
 }
-
 .btn-retry:hover {
-    background: #005bb5;
+    background: lightcoral;
+}
+
+/* Tablero de Triqui decorativo */
+.triqui-board {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    background-color: #121212;
+    margin-right: 5%;
+    min-width: 300px;
+    min-height: 300px;
+    max-width: 300px;
+    max-height: 300px;
+}
+.line {
+    position: absolute;
+    background-color: darkgrey;
+}
+.line.vertical {
+    width: 5px;
+    height: 100%;
+}
+.line.vertical:nth-child(1) {
+    left: 100px;
+}
+.line.vertical:nth-child(2) {
+    left: 200px;
+}   
+.line.horizontal {
+    width: 100%;
+    height: 5px;
+}
+.line.horizontal:nth-child(3) {
+    top: 100px;
+}
+.line.horizontal:nth-child(4) {
+    top: 200px;
+}
+.marker {
+    position: absolute;
+    font-size: 72px;
+    font-family: 'Nunito', sans-serif;
+}
+.marker.x {
+    color: crimson;
+}
+.marker.o {
+    color: whitesmoke;
+}
+.marker.x:nth-child(1) {
+    top: 3px;
+    left: 20px;
+}
+.marker.x:nth-child(2) {
+    top: 206px;
+    left: 20px;
+}
+.marker.x:nth-child(3) {
+    top: 3px;
+    left: 220px;
+}
+.marker.x:nth-child(4) {
+    top: 106px;
+    left: 120px;
+}
+.marker.x:nth-child(5) {
+    top: 206px;
+    left: 220px;
 }

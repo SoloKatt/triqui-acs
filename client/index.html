@@ -3,15 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Triqui</title>
+    <title>Triqui</title>
     <link rel="stylesheet" href="./styles/form.css">
 </head>
 <body>
+    <div class = "triqui-board">
+        <div class="line vertical"></div>
+        <div class="line vertical"></div>
+        <div class="line horizontal"></div>
+        <div class="line horizontal"></div>
+        <div class="marker">
+            <div class="marker x">X</div>
+            <div class="marker x">X</div>
+            <div class="marker x">X</div>
+        </div>
+        <div class="marker">
+            <div class="marker o">O</div>
+            <div class="marker o">O</div>
+            <div class="marker o">O</div>
+        </div>
+    </div>
     <div class="container">
         <header>
             <h1>Juego de Triqui</h1>
         </header>
-
+        
         <!-- Formulario de registro -->
         <div id="registerForm" class="form-container" style="display: none;">
             <h2 class="form-title">Registro</h2>
