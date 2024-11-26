@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Triqui</title>
     <link rel="stylesheet" href="./styles/form.css">
+    <style>
+        .botones {
+            width: 80px;
+            height: 80px;
+            color: black;
+            background-color: white;
+            font-size: 50px;
+        }
+    </style>
 </head>
 <body>
     <div class = "triqui-board" id="triquiBoard">
@@ -58,20 +67,29 @@
         <!-- Área del juego -->
         <div id="lobby" class="game-container" style="display: none; width: 800px; justify-content: center;">
             <h2>Bienvenido jugador: <span id="usernameDisplay"></span></h2>
+            <select name ="letras" id="letras"></select>
             <div style="display: flex; justify-content: center; width: 100%; justify-content: center;">
                 <div class="triqui-board-game" id="triquiBoard" style="width: 60%; justify-content: center;">
-                    <!-- Fila 1 -->
-                    <div class="cell" data-index="0"></div>
-                    <div class="cell" data-index="1"></div>
-                    <div class="cell" data-index="2"></div>
-                    <!-- Fila 2 -->
-                    <div class="cell" data-index="3"></div>
-                    <div class="cell" data-index="4"></div>
-                    <div class="cell" data-index="5"></div>
-                    <!-- Fila 3 -->
-                    <div class="cell" data-index="6"></div>
-                    <div class="cell" data-index="7"></div>
-                    <div class="cell" data-index="8"></div>
+                    
+                    <table>
+                        <tr>
+                            <td>
+                                <input type=button value="" name="btn1" id="btn1" class="botones" onclick="jugada(1)"/>
+                                <input type=button value="" name="btn2" id="btn2" class="botones" onclick="jugada(2)"/>
+                                <input type=button value="" name="btn3" id="btn3" class="botones" onclick="jugada(3)"/>
+                            </td>
+                            <td>
+                                <input type=button value="" name="btn4" id="btn4" class="botones" onclick="jugada(4)"/>
+                                <input type=button value="" name="btn5" id="btn5" class="botones" onclick="jugada(5)"/>
+                                <input type=button value="" name="btn6" id="btn6" class="botones" onclick="jugada(6)"/>
+                            </td>
+                            <td>
+                                <input type=button value="" name="btn7" id="btn7" class="botones" onclick="jugada(7)"/>
+                                <input type=button value="" name="btn8" id="btn8" class="botones" onclick="jugada(8)"/>
+                                <input type=button value="" name="btn9" id="btn9" class="botones" onclick="jugada(9)"/>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
                 <div id="gameContainer" style="width: 40%; justify-content: left;">
                     <!-- <h2>Jugador: <span id="usernameDisplay"></span></h2> -->
@@ -80,28 +98,32 @@
             </div>
         </div>
     </div>
-
+    <script src = "https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // Conexión con el servidor de WebSockets
         const socket = io();
-
+    
         // Elementos del DOM
         const registerForm = document.getElementById('register');
-        const registerUsername = document.getElementById('registerUsername');
         const loginForm = document.getElementById('login');
+        const registerUsername = document.getElementById('registerUsername');
         const loginUsername = document.getElementById('loginUsername');
-        const lobby = document.getElementById('lobby');
         const usernameDisplay = document.getElementById('usernameDisplay');
         const registerDiv = document.getElementById('registerForm');
         const loginDiv = document.getElementById('loginForm');
-        const triquiBoard = document.getElementById('triquiBoard'); // Tablero del triqui
+        const lobby = document.getElementById('lobby');
+        const triquiBoard = document.getElementById('triquiBoard');
+        const gameDetails = document.getElementById('gameDetails');
         const gameContainer = document.getElementById('gameContainer');
-        const gameDetails = document.getElementById('gameDetails'); // Contenedor de detalles del juego
-
-        // Función para mostrar mensajes
+    
+        // Variables del juego
+        let myTurn = false; // Indica si es tu turno
+        let currentRole = ''; // 'X' o 'O'
+    
+        // Función para mostrar mensajes al usuario
         const showMessage = (message) => alert(message);
-
+    
         // Función para alternar visibilidad de secciones
         const showSection = (sectionToShow) => {
             [registerDiv, loginDiv, lobby].forEach(section => {
@@ -114,37 +136,32 @@
                 triquiBoard.style.display = 'none'; // Ocultar el tablero
             }
         };
-
-        // Alternar entre formularios
-        document.getElementById('showLogin').addEventListener('click', (event) => {
-            event.preventDefault();
+    
+        // Cambiar entre formularios de registro y login
+        document.getElementById('showLogin').addEventListener('click', (e) => {
+            e.preventDefault();
             showSection(loginDiv);
         });
-
-        document.getElementById('showRegister').addEventListener('click', (event) => {
-            event.preventDefault();
+    
+        document.getElementById('showRegister').addEventListener('click', (e) => {
+            e.preventDefault();
             showSection(registerDiv);
         });
-
-        // Manejar el registro
-        registerForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
+    
+        // Manejo del registro
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
             const username = registerUsername.value.trim();
-
-            if (!username) {
-                showMessage('El nombre de usuario es obligatorio.');
-                return;
-            }
-
+            if (!username) return showMessage('El nombre de usuario es obligatorio.');
+    
             try {
-                const response = await fetch('/register', {
+                const res = await fetch('/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username }),
                 });
-
-                const data = await response.json();
-                if (response.status === 201) {
+                const data = await res.json();
+                if (res.status === 201) {
                     showMessage('Registro exitoso. Por favor, inicia sesión.');
                     showSection(loginDiv);
                 } else {
@@ -154,26 +171,21 @@
                 showMessage('Error al conectar con el servidor.');
             }
         });
-
-        // Manejar el inicio de sesión
-        loginForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
+    
+        // Manejo del inicio de sesión
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
             const username = loginUsername.value.trim();
-
-            if (!username) {
-                showMessage('El nombre de usuario es obligatorio.');
-                return;
-            }
-
+            if (!username) return showMessage('El nombre de usuario es obligatorio.');
+    
             try {
-                const response = await fetch('/login', {
+                const res = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username }),
                 });
-
-                const data = await response.json();
-                if (response.status === 200) {
+                const data = await res.json();
+                if (res.status === 200) {
                     socket.emit('login', username);
                     usernameDisplay.textContent = username;
                     showSection(lobby);
@@ -184,206 +196,96 @@
                 showMessage('Error al conectar con el servidor.');
             }
         });
-
+    
         // Manejo de errores de conexión
         socket.on('error', (error) => {
             const { type, message } = error;
-
             showMessage(message || 'Error desconocido.');
-
-            if (type === 'server_full') {
-                window.location.href = '/full';
-            }
-            if (type === 'duplicate_user') {
-                window.location.href = '/duplicateuser'
-            }
+            if (type === 'server_full') window.location.href = '/full';
+            if (type === 'duplicate_user') window.location.href = '/duplicateuser';
         });
-
-        // Mostrar la sala de espera
-        const waitingDiv = document.createElement('div');
-        waitingDiv.id = 'waitingRoom';
-        waitingDiv.style.display = 'none';
-        waitingDiv.innerHTML = '<h2>Esperando a otro jugador...</h2>';
-        document.body.appendChild(waitingDiv);
-
+    
+        // Mostrar sala de espera
         socket.on('waiting', (data) => {
-            waitingDiv.style.display = 'block';
-            lobby.style.display = 'none';
             showMessage(data.message);
+            
         });
-
-        // Iniciar el juego cuando ambos jugadores estén conectados
+    
+        // Iniciar el juego
         socket.on('start game', (data) => {
-            waitingDiv.style.display = 'none';
-            lobby.style.display = 'none';
             showMessage(data.message);
-            console.log('¡El juego ha comenzado!');
+            showSection(lobby);
         });
 
-        // Evento cuando inicia el juego (ocultar el tablero)
-        socket.on('start game', (data) => {
-            showSection(lobby); // Cambia a la zona de juego
-            showMessage(data.message);
-        });
-
-        // Escuchar el evento de asignación de roles
+        
+        // Asignación de roles y detalles del juego
         socket.on('role assigned', ({ role, order, opponentUsername }) => {
-            console.log('Datos recibidos en role assigned:', { role, order, opponentUsername });
-
-            // Verificar que los datos se reciben correctamente
+            currentRole = role;
+            myTurn = order === 'first';
             gameDetails.innerHTML = `
                 <p>Tu ficha: <strong>${role}</strong></p>
                 <p>Oponente: <strong>${opponentUsername}</strong></p>
-                <p>Tu turno: <strong>${order === 'first' ? 'Primero' : 'Segundo'}</strong></p>
+                <p>Tu turno: <strong>${myTurn ? 'Sí' : 'No'}</strong></p>
             `;
+            var jugador = document.getElementById("letras");
+    jugador.value = role;
         });
 
-        // Variables para gestionar el juego
-            let myTurn = false; // Indica si es tu turno
-            let currentRole = ''; // 'X' o 'O'
+        // --------------------------------------------------------------------------------------------
+        
+        
+        var jugador = document.getElementById("letras");
+        
+        
+        function jugada(cuadro) {
+            document.getElementById("btn" + cuadro).value = jugador.value;
+            // para recibir el cambio de valor
+            socket.emit("jugada", { id: jugador.value, id2: cuadro });
+        }
 
-            // Escuchar la asignación de roles
-            socket.on('role assigned', ({ role, order }) => {
-                currentRole = role;
-                myTurn = order === 'first'; // Si eres el primero, comienza tu turno
-            });
+        var letra = document.getElementById("letras");
+        // Agregar las opciones al select
+        letra.options.length = 0; // Limpiar opciones anteriores
+        letra.add(new Option("X", "X"));
+        letra.add(new Option("O", "O"));
 
-        // Manejar clics en las celdas del tablero
-        triquiBoard.addEventListener('click', (event) => {
-            const cell = event.target;
+        // Se recoge la informacion del socket
+        socket.on('jugada2', function(data) {
+            document.getElementById("btn" + data.id2).value = data.id;
+        });
 
-            // Verificar que se hizo clic en una celda válida
-            if (!cell.classList.contains('cell') || cell.textContent !== '') return;
 
-            // Verificar que sea tu turno
-            if (!myTurn) {
-                showMessage('Espera tu turno.');
-                return;
-            }
 
-            // Actualizar el tablero visualmente
+
+        //---------------------------------------------------------------------------------------------
+    
+        // Manejar clics en el tablero
+        triquiBoard.addEventListener('click', (e) => {
+            const cell = e.target;
+            if (!cell.classList.contains('cell') || cell.textContent || !myTurn) return showMessage('Espera tu turno.');
             cell.textContent = currentRole;
-
-            // Obtener el índice de la celda
-            const cellIndex = cell.getAttribute('data-index');
-
-            // Enviar la jugada al servidor
+            const cellIndex = cell.dataset.index;
             socket.emit('make move', { cell: parseInt(cellIndex) });
-
-            // Desactivar el turno del jugador
             myTurn = false;
         });
-
-        // Escuchar las actualizaciones del tablero desde el servidor
+    
+        // Actualizar el tablero
         socket.on('update board', ({ board, nextTurn }) => {
-            // Actualizar el tablero visualmente
             board.forEach((value, index) => {
                 const cell = document.querySelector(`.cell[data-index="${index}"]`);
-                cell.textContent = value; // 'X', 'O' o ''
+                cell.textContent = value || '';
             });
-
-            // Actualizar el turno
             myTurn = nextTurn === currentRole;
         });
-
-        // Manejar el final del juego
+    
+        // Fin del juego
         socket.on('game over', ({ winner }) => {
-            if (winner === currentRole) {
-                showMessage('¡Ganaste!');
-            } else if (winner === null) {
-                showMessage('Es un empate.');
-            } else {
-                showMessage('Perdiste.');
-            }
-
-            // Deshabilitar clics en el tablero
+            if (winner === currentRole) showMessage('¡Ganaste!');
+            else if (!winner) showMessage('Es un empate.');
+            else showMessage('Perdiste.');
             triquiBoard.style.pointerEvents = 'none';
         });
-
-
-
-        // Variables para gestionar el juego
-let currentPlayer = ''; // Se asignará 'X' o 'O'
-let isTurn = false; // Indica si es el turno del jugador actual
-
-// Evento que se recibe al iniciar el juego con roles asignados
-socket.on('role assigned', ({ role, order, opponentUsername }) => {
-    currentPlayer = role; // Asigna el rol del jugador
-    isTurn = order === 'first'; // Determina si este jugador empieza
-
-    console.log(`Tu ficha: ${currentPlayer}, Turno inicial: ${isTurn ? 'Sí' : 'No'}`);
-
-    // Actualiza los detalles del juego
-    gameDetails.innerHTML = `
-        <p>Tu ficha: <strong>${currentPlayer}</strong></p>
-        <p>Oponente: <strong>${opponentUsername}</strong></p>
-        <p>Tu turno: <strong>${isTurn ? 'Sí' : 'No'}</strong></p>
-    `;
-});
-
-// Función para manejar el clic en una celda
-const handleCellClick = (event) => {
-    if (!isTurn) {
-        alert('No es tu turno.');
-        return;
-    }
-
-    const cell = event.target;
-
-    // Verifica si la celda ya está ocupada
-    if (cell.textContent) {
-        alert('Esta celda ya está ocupada.');
-        return;
-    }
-
-    // Actualiza la celda con la ficha del jugador actual
-    cell.textContent = currentPlayer;
-    cell.setAttribute('disabled', true); // Opcional: para evitar clics futuros
-    cell.style.pointerEvents = 'none'; // Desactiva clics posteriores
-
-    // Enviar movimiento al servidor
-    const cellIndex = cell.getAttribute('data-index');
-    socket.emit('move', { cellIndex, player: currentPlayer });
-
-    // Desactiva el turno hasta que el servidor lo confirme
-    isTurn = false;
-};
-
-// Manejar clics en las celdas
-document.querySelectorAll('.cell').forEach((cell) => {
-    cell.addEventListener('click', handleCellClick);
-});
-
-// Escuchar movimientos del oponente desde el servidor
-socket.on('opponent move', ({ cellIndex, player }) => {
-    const cell = document.querySelector(`.cell[data-index='${cellIndex}']`);
-
-    if (cell && !cell.textContent) {
-        cell.textContent = player;
-        cell.setAttribute('disabled', true); // Opcional
-        cell.style.pointerEvents = 'none'; // Desactiva clics posteriores
-    }
-
-    // Es tu turno después del movimiento del oponente
-    isTurn = true;
-});
-
-// Escuchar eventos de victoria, empate o errores
-socket.on('game result', ({ result, winningCells }) => {
-    if (result === 'win') {
-        alert('¡Ganaste!');
-        winningCells.forEach((index) => {
-            const cell = document.querySelector(`.cell[data-index='${index}']`);
-            if (cell) cell.classList.add('winner'); // Destacar las celdas ganadoras
-        });
-    } else if (result === 'lose') {
-        alert('Has perdido. ¡Suerte para la próxima!');
-    } else if (result === 'draw') {
-        alert('Es un empate.');
-    }
-});
-
-
     </script>
+    
 </body>
 </html>

@@ -36,6 +36,22 @@ await db.execute(`
         position INTEGER
     )
 `)
+
+function checkWinner(board) {
+    const winningCombinations = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
+        [0, 4, 8], [2, 4, 6],           // Diagonales
+    ];
+
+    for (const combination of winningCombinations) {
+        const [a, b, c] = combination;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a]; // Devuelve 'X' o 'O' como ganador
+        }
+    }
+    return null; // No hay ganador
+}
     
 app.use(logger('dev'))
 app.use(express.json())
@@ -109,44 +125,55 @@ let waitingPlayer = null;
 let players = []
 let games = {}; // Variable global para almacenar las partidas
 
-function assignRoles() {
-    // Asignar aleatoriamente el orden
-    const firstPlayerIndex = Math.floor(Math.random() * players.length);
-    const secondPlayerIndex = 1 - firstPlayerIndex;
+function assignRoles(room) {
+    // Verificar que la partida existe
+    if (!games[room]) {
+        console.error(`No se encontró la partida para la sala: ${room}`);
+        return;
+    }
 
-    // Asignar aleatoriamente las fichas
-    const roles = ['X', 'O'];
-    const shuffledRoles = roles.sort(() => Math.random() - 0.5);
+    const game = games[room];
+    const [player1, player2] = game.players;
 
-    players[firstPlayerIndex].role = shuffledRoles[0];
-    players[secondPlayerIndex].role = shuffledRoles[1];
+    // Asignar roles aleatoriamente ('X' o 'O')
+    let roles = ['X', 'O'].sort(() => Math.random() - 0.5);
+    game.roles = {[player1]: roles[0],[player2]: roles[1]};
 
-    // Notificar a los jugadores sus roles
-    players.forEach((player, index) => {
-        const opponentUsername = players[index === firstPlayerIndex ? secondPlayerIndex : firstPlayerIndex].username;
-        io.to(player.id).emit('role assigned', {
-            role: player.role,
-            order: index === firstPlayerIndex ? 'first' : 'second',
-            opponentUsername // Aquí pasamos el nombre del oponente
-        });
+    // Elegir aleatoriamente quién comienza
+    const startingPlayer = Math.random() < 0.5 ? player1 : player2;
+    game.currentTurn = startingPlayer;
+
+    // Notificar roles y turno inicial a los jugadores
+    io.to(player1).emit('role assigned', {
+        role: game.roles[player1],
+        order: startingPlayer === player1 ? 'first' : 'second',
+        opponentUsername: gamingusers.get(player2),
+    });
+    io.to(player2).emit('role assigned', {
+        role: game.roles[player2],
+        order: startingPlayer === player2 ? 'first' : 'second',
+        opponentUsername: gamingusers.get(player1),
     });
 
     console.log(
-        `Roles asignados: ${players[firstPlayerIndex].username} es ${shuffledRoles[0]} y comienza. ` +
-        `${players[secondPlayerIndex].username} es ${shuffledRoles[1]} y va segundo.`
+        `Roles asignados en la sala ${room}: ${gamingusers.get(player1)} (${game.roles[player1]}) ` +
+        `vs ${gamingusers.get(player2)} (${game.roles[player2]}). Empieza: ${gamingusers.get(startingPlayer)}`
     );
 }
 
 io.on('connection', async (socket) => {
+    let currentGame = null;
+    let playerRole = null;
+    let playerOrder = null;
 
     // Aquí el jugador se autentica con su nombre de usuario cuando se conecta
     socket.on('login', (username) => {
         // Verificar si el usuario ya está conectado
         if (Array.from(gamingusers.values()).includes(username)) {
             socket.emit('error', { type: 'duplicate_user', message: 'Este usuario ya está conectado.' });
-            console.log(`Intento de conexión rechazado para el usuario: ${username}`);
             return;
         }
+
         socket.handshake.auth.username = username;
         gamingusers.set(socket.id, username);
         connectedusers++;
@@ -167,15 +194,20 @@ io.on('connection', async (socket) => {
             const room = `game-${socket.id}-${opponent.id}`;
             socket.join(room);
             opponent.join(room);
+            games[room] = {
+                id: room,
+                board: Array(9).fill(null), // Tablero vacío
+                players: [socket.id, opponent.id],
+                roles: { [socket.id]: null, [opponent.id]: null }, // Se asignarán después
+                currentTurn: null, // Será el jugador que empiece
+            };
             io.to(room).emit('start game', { message: 'Ambos jugadores conectados. ¡Comienza el juego!' });
             console.log(`Sala creada: ${room} entre ${username} y ${opponentUsername}`);
 
             // Ahora asignamos los roles
-            assignRoles();  // Llamamos a la función que asigna roles
+            assignRoles(room);  // Llamamos a la función que asigna roles
         }
     });
-
-    
 
     // Verificar el número de conexiones actuales
     if (connectedusers >= MAX_USERS) {
@@ -192,6 +224,16 @@ io.on('connection', async (socket) => {
             connectedusers--;
             console.log(`Un usuario se ha desconectado. Usuarios conectados: ${connectedusers}`);
 
+            // Terminar el juego si estaba jugando
+        for (const room in games) {
+            const game = games[room];
+            if (game.players.includes(socket.id)) {
+                const opponentId = game.players.find((id) => id !== socket.id);
+                io.to(opponentId).emit('game over', { winner: null, message: 'El oponente se desconectó.' });
+                delete games[room];
+                break;
+            }
+        }
             // Eliminar al jugador de la lista de players
             players = players.filter(player => player.id !== socket.id);
         }
@@ -200,52 +242,52 @@ io.on('connection', async (socket) => {
             console.log('Jugador en espera desconectado.');
         }
     });
-
     if (connectedusers < 0) {
         connectedusers = 0;
     }
 
-    
-// Escuchar movimientos realizados por el cliente
-socket.on('make move', ({ cell }) => {
-    const game = games[socket.gameId]; // Obtener el estado de la partida
-    if (!game) return;
+    // Escuchar movimientos realizados por el cliente
+    socket.on('make move', ({ cell }) => {
+        const game = games[socket.gameId]; // Obtener el estado de la partida
+        if (!game) return;
 
-    // Verificar que sea el turno del jugador correcto
-    if (game.currentTurn !== socket.id) {
-        socket.emit('error', { message: 'No es tu turno.' });
-        return;
-    }
+        // Verificar que sea el turno del jugador correcto
+        if (game.currentTurn !== socket.id) {
+            socket.emit('error', { message: 'No es tu turno.' });
+            return;
+        }
 
-    // Actualizar el tablero
-    if (!game.board[cell]) {
-        game.board[cell] = game.roles[socket.id]; // 'X' o 'O'
+        // Comprobar si la celda ya está ocupada
+        if (game.board[cell] !== '') {
+            socket.emit('error', { message: 'La celda ya está ocupada.' });
+            return; // La celda ya está ocupada
+        }
+
+        // Realizar la jugada
+        game.board[cell] = game.roles[socket.id]; // Asignar 'X' o 'O' al tablero
 
         // Alternar el turno
-        game.currentTurn = game.players.find((player) => player !== socket.id);
+        game.currentTurn = game.players.find((playerId) => playerId !== socket.id);
 
-        // Verificar si alguien ganó
+        // Verificar si alguien ganó o si el juego está completo (empate)
         const winner = checkWinner(game.board);
-        if (winner || game.board.every((cell) => cell)) {
-            // Finalizar el juego
+        if (winner || game.board.every((cell) => cell !== '')) {
+            // Finalizar el juego y anunciar al ganador o empate
             io.to(game.id).emit('game over', { winner });
         } else {
-            // Actualizar el tablero para ambos jugadores
+            // Enviar la actualización del tablero a ambos jugadores
             io.to(game.id).emit('update board', {
                 board: game.board,
-                nextTurn: game.roles[game.currentTurn],
+                nextTurn: game.roles[game.currentTurn], // El siguiente turno es del jugador contrario
             });
         }
-    }
+    });
+    console.log("jugada");
+    socket.on('jugada', function(dataS) {
+        io.sockets.emit('jugada2', dataS);
+        console.log("jugada"+dataS.id+"--"+dataS.id2);
+    });
 });
-
-
-
-
-
-})
-
-
 
 app.get('/duplicateuser', (req, res) => {
     res.sendFile(process.cwd() + '/client/duplicateuser.html');
