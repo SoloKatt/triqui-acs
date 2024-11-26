@@ -56,11 +56,25 @@
         </div>
 
         <!-- Área del juego -->
-        <div id="lobby" class="game-container" style="display: none;">
+        <div id="lobby" class="game-container" style="display: none; width: 800px; justify-content: center;">
             <h2>Bienvenido jugador: <span id="usernameDisplay"></span></h2>
-            <div style="grid-row: auto;">
-                <div id="gameContainer">
-                    <h2>Jugador: <span id="usernameDisplay"></span></h2>
+            <div style="display: flex; justify-content: center; width: 100%; justify-content: center;">
+                <div class="triqui-board-game" id="triquiBoard" style="width: 60%; justify-content: center;">
+                    <!-- Fila 1 -->
+                    <div class="cell" data-index="0"></div>
+                    <div class="cell" data-index="1"></div>
+                    <div class="cell" data-index="2"></div>
+                    <!-- Fila 2 -->
+                    <div class="cell" data-index="3"></div>
+                    <div class="cell" data-index="4"></div>
+                    <div class="cell" data-index="5"></div>
+                    <!-- Fila 3 -->
+                    <div class="cell" data-index="6"></div>
+                    <div class="cell" data-index="7"></div>
+                    <div class="cell" data-index="8"></div>
+                </div>
+                <div id="gameContainer" style="width: 40%; justify-content: left;">
+                    <!-- <h2>Jugador: <span id="usernameDisplay"></span></h2> -->
                     <div id="gameDetails"></div> <!-- Información de los jugadores -->
                 </div>
             </div>
@@ -223,6 +237,153 @@
                 <p>Tu turno: <strong>${order === 'first' ? 'Primero' : 'Segundo'}</strong></p>
             `;
         });
+
+        // Variables para gestionar el juego
+            let myTurn = false; // Indica si es tu turno
+            let currentRole = ''; // 'X' o 'O'
+
+            // Escuchar la asignación de roles
+            socket.on('role assigned', ({ role, order }) => {
+                currentRole = role;
+                myTurn = order === 'first'; // Si eres el primero, comienza tu turno
+            });
+
+        // Manejar clics en las celdas del tablero
+        triquiBoard.addEventListener('click', (event) => {
+            const cell = event.target;
+
+            // Verificar que se hizo clic en una celda válida
+            if (!cell.classList.contains('cell') || cell.textContent !== '') return;
+
+            // Verificar que sea tu turno
+            if (!myTurn) {
+                showMessage('Espera tu turno.');
+                return;
+            }
+
+            // Actualizar el tablero visualmente
+            cell.textContent = currentRole;
+
+            // Obtener el índice de la celda
+            const cellIndex = cell.getAttribute('data-index');
+
+            // Enviar la jugada al servidor
+            socket.emit('make move', { cell: parseInt(cellIndex) });
+
+            // Desactivar el turno del jugador
+            myTurn = false;
+        });
+
+        // Escuchar las actualizaciones del tablero desde el servidor
+        socket.on('update board', ({ board, nextTurn }) => {
+            // Actualizar el tablero visualmente
+            board.forEach((value, index) => {
+                const cell = document.querySelector(`.cell[data-index="${index}"]`);
+                cell.textContent = value; // 'X', 'O' o ''
+            });
+
+            // Actualizar el turno
+            myTurn = nextTurn === currentRole;
+        });
+
+        // Manejar el final del juego
+        socket.on('game over', ({ winner }) => {
+            if (winner === currentRole) {
+                showMessage('¡Ganaste!');
+            } else if (winner === null) {
+                showMessage('Es un empate.');
+            } else {
+                showMessage('Perdiste.');
+            }
+
+            // Deshabilitar clics en el tablero
+            triquiBoard.style.pointerEvents = 'none';
+        });
+
+
+
+        // Variables para gestionar el juego
+let currentPlayer = ''; // Se asignará 'X' o 'O'
+let isTurn = false; // Indica si es el turno del jugador actual
+
+// Evento que se recibe al iniciar el juego con roles asignados
+socket.on('role assigned', ({ role, order, opponentUsername }) => {
+    currentPlayer = role; // Asigna el rol del jugador
+    isTurn = order === 'first'; // Determina si este jugador empieza
+
+    console.log(`Tu ficha: ${currentPlayer}, Turno inicial: ${isTurn ? 'Sí' : 'No'}`);
+
+    // Actualiza los detalles del juego
+    gameDetails.innerHTML = `
+        <p>Tu ficha: <strong>${currentPlayer}</strong></p>
+        <p>Oponente: <strong>${opponentUsername}</strong></p>
+        <p>Tu turno: <strong>${isTurn ? 'Sí' : 'No'}</strong></p>
+    `;
+});
+
+// Función para manejar el clic en una celda
+const handleCellClick = (event) => {
+    if (!isTurn) {
+        alert('No es tu turno.');
+        return;
+    }
+
+    const cell = event.target;
+
+    // Verifica si la celda ya está ocupada
+    if (cell.textContent) {
+        alert('Esta celda ya está ocupada.');
+        return;
+    }
+
+    // Actualiza la celda con la ficha del jugador actual
+    cell.textContent = currentPlayer;
+    cell.setAttribute('disabled', true); // Opcional: para evitar clics futuros
+    cell.style.pointerEvents = 'none'; // Desactiva clics posteriores
+
+    // Enviar movimiento al servidor
+    const cellIndex = cell.getAttribute('data-index');
+    socket.emit('move', { cellIndex, player: currentPlayer });
+
+    // Desactiva el turno hasta que el servidor lo confirme
+    isTurn = false;
+};
+
+// Manejar clics en las celdas
+document.querySelectorAll('.cell').forEach((cell) => {
+    cell.addEventListener('click', handleCellClick);
+});
+
+// Escuchar movimientos del oponente desde el servidor
+socket.on('opponent move', ({ cellIndex, player }) => {
+    const cell = document.querySelector(`.cell[data-index='${cellIndex}']`);
+
+    if (cell && !cell.textContent) {
+        cell.textContent = player;
+        cell.setAttribute('disabled', true); // Opcional
+        cell.style.pointerEvents = 'none'; // Desactiva clics posteriores
+    }
+
+    // Es tu turno después del movimiento del oponente
+    isTurn = true;
+});
+
+// Escuchar eventos de victoria, empate o errores
+socket.on('game result', ({ result, winningCells }) => {
+    if (result === 'win') {
+        alert('¡Ganaste!');
+        winningCells.forEach((index) => {
+            const cell = document.querySelector(`.cell[data-index='${index}']`);
+            if (cell) cell.classList.add('winner'); // Destacar las celdas ganadoras
+        });
+    } else if (result === 'lose') {
+        alert('Has perdido. ¡Suerte para la próxima!');
+    } else if (result === 'draw') {
+        alert('Es un empate.');
+    }
+});
+
+
     </script>
 </body>
 </html>

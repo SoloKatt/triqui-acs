@@ -36,7 +36,7 @@ await db.execute(`
         position INTEGER
     )
 `)
-
+    
 app.use(logger('dev'))
 app.use(express.json())
 // Para que funcione el css del cliente
@@ -107,6 +107,7 @@ const MAX_USERS = 2;
 const gamingusers = new Map();
 let waitingPlayer = null;
 let players = []
+let games = {}; // Variable global para almacenar las partidas
 
 function assignRoles() {
     // Asignar aleatoriamente el orden
@@ -174,6 +175,8 @@ io.on('connection', async (socket) => {
         }
     });
 
+    
+
     // Verificar el número de conexiones actuales
     if (connectedusers >= MAX_USERS) {
         socket.emit('error', { type: 'server_full', message: 'El servidor está lleno. Intenta más tarde.' });
@@ -202,21 +205,47 @@ io.on('connection', async (socket) => {
         connectedusers = 0;
     }
 
-    socket.on('make move', async (move) => {
-        let result
-        const player = socket.handshake.auth.username ?? 'anonymous'
-        try {
-            result = await db.execute({
-                sql: 'INSERT INTO game_moves (player, position) VALUES (:player, :position)',
-                args: { player, position: move.position }
-            })
-        } catch (e) {
-            console.error(e)
-            return
+    
+// Escuchar movimientos realizados por el cliente
+socket.on('make move', ({ cell }) => {
+    const game = games[socket.gameId]; // Obtener el estado de la partida
+    if (!game) return;
+
+    // Verificar que sea el turno del jugador correcto
+    if (game.currentTurn !== socket.id) {
+        socket.emit('error', { message: 'No es tu turno.' });
+        return;
+    }
+
+    // Actualizar el tablero
+    if (!game.board[cell]) {
+        game.board[cell] = game.roles[socket.id]; // 'X' o 'O'
+
+        // Alternar el turno
+        game.currentTurn = game.players.find((player) => player !== socket.id);
+
+        // Verificar si alguien ganó
+        const winner = checkWinner(game.board);
+        if (winner || game.board.every((cell) => cell)) {
+            // Finalizar el juego
+            io.to(game.id).emit('game over', { winner });
+        } else {
+            // Actualizar el tablero para ambos jugadores
+            io.to(game.id).emit('update board', {
+                board: game.board,
+                nextTurn: game.roles[game.currentTurn],
+            });
         }
-        io.emit('game update', move, result.lastInsertRowid.toString(), player)
-    })
+    }
+});
+
+
+
+
+
 })
+
+
 
 app.get('/duplicateuser', (req, res) => {
     res.sendFile(process.cwd() + '/client/duplicateuser.html');

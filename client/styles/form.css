@@ -157,5 +157,49 @@ body {
         top: 206px;
         left: 220px;
     }
-    
+    /* Estilo general del tablero */
+.triqui-board-game {
+    display: grid;
+    grid-template-columns: repeat(3, 100px); /* 3 columnas, cada una de 100px */
+    grid-template-rows: repeat(3, 100px);   /* 3 filas, cada una de 100px */
+    gap: 5px; /* Espacio entre las celdas */
+    background-color: #000; /* Fondo negro para los bordes */
+    padding: 5px; /* Margen alrededor del tablero */
+    width: fit-content; /* Ajustar al contenido */
+    margin: 20px auto; /* Centrar en la página */
+}
+
+/* Estilo para las celdas */
+.cell {
+    display: flex; /* Para centrar el contenido */
+    align-items: center; /* Centrar verticalmente */
+    justify-content: center; /* Centrar horizontalmente */
+    background-color: #fff; /* Fondo blanco */
+    font-size: 2rem; /* Tamaño del texto (X o O) */
+    font-weight: bold; /* Negrita para las fichas */
+    color: #333; /* Color de las fichas */
+    cursor: pointer; /* Cursor interactivo */
+    border: 1px solid #000; /* Líneas divisorias */
+    transition: background-color 0.3s ease; /* Efecto de cambio de color */
+}
+
+/* Efecto al pasar el mouse por encima */
+.cell:hover {
+    background-color: #f0f0f0; /* Cambiar color al pasar el mouse */
+}
+
+/* Estilo para una celda ocupada */
+.cell:disabled,
+.cell[disabled] {
+    background-color: #ccc; /* Fondo gris para celdas ocupadas */
+    color: #666; /* Texto atenuado */
+    cursor: not-allowed; /* Cursor desactivado */
+}
+
+/* Opcional: Resaltar la celda ganadora */
+.cell.winner {
+    background-color: #4caf50; /* Verde para la celda ganadora */
+    color: #fff; /* Texto blanco */
+    font-size: 2.5rem; /* Aumentar el tamaño del texto */
+}
     
