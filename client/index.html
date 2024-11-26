@@ -25,11 +25,12 @@
     </div>
     <div class="container">
         <header>
-            <h1>Triqui</h1>
+            
         </header>
         
         <!-- Formulario de registro -->
         <div id="registerForm" class="form-container" style="display: none;">
+            <h1>Triqui</h1>
             <h2 class="form-title">Registro</h2>
             <form id="register" class="form">
                 <input type="text" id="registerUsername" class="form-input" placeholder="Nombre de usuario" required>
@@ -42,11 +43,13 @@
 
         <!-- Formulario de inicio de sesión -->
         <div id="loginForm" class="form-container">
+            <h1>Triqui</h1>
             <h2 class="form-title">Iniciar sesión</h2>
             <form id="login" class="form">
                 <input type="text" id="loginUsername" class="form-input" placeholder="Nombre de usuario" required>
                 <button type="submit" class="form-button">Entrar</button>
             </form>
+            <div id="role-info"></div>
             <p class="form-text">
                 ¿No tienes cuenta? <a href="#" id="showRegister" class="form-link">Regístrate</a>
             </p>
@@ -55,9 +58,12 @@
         <!-- Área del juego -->
         <div id="lobby" class="game-container" style="display: none;">
             <h2>Bienvenido jugador: <span id="usernameDisplay"></span></h2>
-            <p class="form-text">
-                ¿No tienes cuenta? <a href="#" id="showRegister" class="form-link">Regístrate</a>
-            </p>
+            <div style="grid-row: auto;">
+                <div id="gameContainer">
+                    <h2>Jugador: <span id="usernameDisplay"></span></h2>
+                    <div id="gameDetails"></div> <!-- Información de los jugadores -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -76,6 +82,8 @@
         const registerDiv = document.getElementById('registerForm');
         const loginDiv = document.getElementById('loginForm');
         const triquiBoard = document.getElementById('triquiBoard'); // Tablero del triqui
+        const gameContainer = document.getElementById('gameContainer');
+        const gameDetails = document.getElementById('gameDetails'); // Contenedor de detalles del juego
 
         // Función para mostrar mensajes
         const showMessage = (message) => alert(message);
@@ -163,8 +171,6 @@
             }
         });
 
-        
-
         // Manejo de errores de conexión
         socket.on('error', (error) => {
             const { type, message } = error;
@@ -179,14 +185,13 @@
             }
         });
 
-        // Elementos del DOM
+        // Mostrar la sala de espera
         const waitingDiv = document.createElement('div');
         waitingDiv.id = 'waitingRoom';
         waitingDiv.style.display = 'none';
         waitingDiv.innerHTML = '<h2>Esperando a otro jugador...</h2>';
         document.body.appendChild(waitingDiv);
 
-        // Mostrar la sala de espera
         socket.on('waiting', (data) => {
             waitingDiv.style.display = 'block';
             lobby.style.display = 'none';
@@ -197,8 +202,6 @@
         socket.on('start game', (data) => {
             waitingDiv.style.display = 'none';
             lobby.style.display = 'none';
-
-            // Aquí puedes cargar la zona de juego
             showMessage(data.message);
             console.log('¡El juego ha comenzado!');
         });
@@ -207,6 +210,18 @@
         socket.on('start game', (data) => {
             showSection(lobby); // Cambia a la zona de juego
             showMessage(data.message);
+        });
+
+        // Escuchar el evento de asignación de roles
+        socket.on('role assigned', ({ role, order, opponentUsername }) => {
+            console.log('Datos recibidos en role assigned:', { role, order, opponentUsername });
+
+            // Verificar que los datos se reciben correctamente
+            gameDetails.innerHTML = `
+                <p>Tu ficha: <strong>${role}</strong></p>
+                <p>Oponente: <strong>${opponentUsername}</strong></p>
+                <p>Tu turno: <strong>${order === 'first' ? 'Primero' : 'Segundo'}</strong></p>
+            `;
         });
     </script>
 </body>

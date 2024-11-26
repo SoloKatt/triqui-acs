@@ -2,7 +2,7 @@ import express from 'express'
 import logger from 'morgan'
 import dotenv from 'dotenv'
 import { createClient } from '@libsql/client'
-import { Server} from 'socket.io'
+import { Server } from 'socket.io'
 import { createServer } from 'node:http'
 
 dotenv.config()
@@ -11,8 +11,9 @@ const port = process.env.PORT ?? 3000
 const app = express()
 const server = createServer(app)
 const io = new Server(server, {
-    connectionStateRecovery:{}
+    connectionStateRecovery: {}
 })
+
 // Conexion con la base de datos
 const db = createClient({
     url: "libsql://triqui-acs-solokatt.turso.io",
@@ -21,11 +22,11 @@ const db = createClient({
 
 // Crea la tabla de usuarios si esta no existe
 await db.execute(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE
-        )
-    `)
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE
+    )
+`)
 
 // Crear la tabla de jugadas del juego
 await db.execute(`
@@ -39,7 +40,7 @@ await db.execute(`
 app.use(logger('dev'))
 app.use(express.json())
 // Para que funcione el css del cliente
-app.use(express.static('client'));
+app.use(express.static('client'))
 
 // Ruta para registrar un nuevo usuario
 app.post('/register', async (req, res) => {
@@ -68,7 +69,7 @@ app.post('/register', async (req, res) => {
         })
 
         console.log('Usuario registrado con éxito');
-        
+
         // Convertir BigInt a String o Number antes de enviarlo
         const userId = result.lastInsertRowid.toString();  // Usamos toString() para convertir BigInt a String
 
@@ -105,6 +106,35 @@ let connectedusers = 0;
 const MAX_USERS = 2;
 const gamingusers = new Map();
 let waitingPlayer = null;
+let players = []
+
+function assignRoles() {
+    // Asignar aleatoriamente el orden
+    const firstPlayerIndex = Math.floor(Math.random() * players.length);
+    const secondPlayerIndex = 1 - firstPlayerIndex;
+
+    // Asignar aleatoriamente las fichas
+    const roles = ['X', 'O'];
+    const shuffledRoles = roles.sort(() => Math.random() - 0.5);
+
+    players[firstPlayerIndex].role = shuffledRoles[0];
+    players[secondPlayerIndex].role = shuffledRoles[1];
+
+    // Notificar a los jugadores sus roles
+    players.forEach((player, index) => {
+        const opponentUsername = players[index === firstPlayerIndex ? secondPlayerIndex : firstPlayerIndex].username;
+        io.to(player.id).emit('role assigned', {
+            role: player.role,
+            order: index === firstPlayerIndex ? 'first' : 'second',
+            opponentUsername // Aquí pasamos el nombre del oponente
+        });
+    });
+
+    console.log(
+        `Roles asignados: ${players[firstPlayerIndex].username} es ${shuffledRoles[0]} y comienza. ` +
+        `${players[secondPlayerIndex].username} es ${shuffledRoles[1]} y va segundo.`
+    );
+}
 
 io.on('connection', async (socket) => {
 
@@ -122,6 +152,8 @@ io.on('connection', async (socket) => {
         console.log(`Usuario conectado: ${username}`);
         console.log(`Usuarios conectados: ${connectedusers}`);
 
+        players.push({ id: socket.id, username });
+
         // Manejamos la sala de espera
         if (waitingPlayer === null) {
             waitingPlayer = socket;
@@ -136,40 +168,40 @@ io.on('connection', async (socket) => {
             opponent.join(room);
             io.to(room).emit('start game', { message: 'Ambos jugadores conectados. ¡Comienza el juego!' });
             console.log(`Sala creada: ${room} entre ${username} y ${opponentUsername}`);
-            if (players.length === 2) {
-            assignRoles();
 
-            // Notificar a ambos jugadores que serán redirigidos al juego
-            players.forEach((player, index) => {
-                io.to(player.id).emit('redirect', `/game.html`);
-            });
-        }
+            // Ahora asignamos los roles
+            assignRoles();  // Llamamos a la función que asigna roles
         }
     });
+
     // Verificar el número de conexiones actuales
     if (connectedusers >= MAX_USERS) {
         socket.emit('error', { type: 'server_full', message: 'El servidor está lleno. Intenta más tarde.' });
         console.log('Conexión rechazada: límite de usuarios alcanzado');
         return;
     }
-    
-    socket.on('disconnect', (username) => {
-        
+
+    socket.on('disconnect', () => {
         const disconnectedUser = gamingusers.get(socket.id);
-        if(disconnectedUser) {
-            console.log(`El usuario: ${disconnectedUser} se ha desconectado`)
+        if (disconnectedUser) {
+            console.log(`El usuario: ${disconnectedUser} se ha desconectado`);
             gamingusers.delete(socket.id);
             connectedusers--;
             console.log(`Un usuario se ha desconectado. Usuarios conectados: ${connectedusers}`);
+
+            // Eliminar al jugador de la lista de players
+            players = players.filter(player => player.id !== socket.id);
         }
         if (waitingPlayer === socket) {
             waitingPlayer = null;
             console.log('Jugador en espera desconectado.');
         }
     });
-    if(connectedusers < 0) {
+
+    if (connectedusers < 0) {
         connectedusers = 0;
     }
+
     socket.on('make move', async (move) => {
         let result
         const player = socket.handshake.auth.username ?? 'anonymous'
@@ -185,7 +217,6 @@ io.on('connection', async (socket) => {
         io.emit('game update', move, result.lastInsertRowid.toString(), player)
     })
 })
-
 
 app.get('/duplicateuser', (req, res) => {
     res.sendFile(process.cwd() + '/client/duplicateuser.html');
