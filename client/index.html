@@ -219,41 +219,43 @@
 
         
         // Asignación de roles y detalles del juego
-        socket.on('role assigned', ({ role, order, opponentUsername }) => {
-            currentRole = role;
-            myTurn = order === 'first';
-            gameDetails.innerHTML = `
-                <p>Tu ficha: <strong>${role}</strong></p>
-                <p>Oponente: <strong>${opponentUsername}</strong></p>
-                <p>Tu turno: <strong>${myTurn ? 'Sí' : 'No'}</strong></p>
-            `;
-            var jugador = document.getElementById("letras");
-    jugador.value = role;
-            
-        });
+socket.on('role assigned', ({ role, order, opponentUsername }) => {
+    currentRole = role;
+    myTurn = order === 'first';
+    gameDetails.innerHTML = `
+        <p>Tu ficha: <strong>${role}</strong></p>
+        <p>Oponente: <strong>${opponentUsername}</strong></p>
+        <p>Tu turno: <strong>${myTurn ? 'Sí' : 'No'}</strong></p>
+    `;
+    document.getElementById("letras").value = role;
+});
 
-        // --------------------------------------------------------------------------------------------
-        
-        
-        var jugador = document.getElementById("letras");
-        
-        
-        function jugada(cuadro) {
-            document.getElementById("btn" + cuadro).value = jugador.value;
-            // para recibir el cambio de valor
-            socket.emit("jugada", { id: jugador.value, id2: cuadro });
-        }
+// Función que maneja las jugadas del jugador
+function jugada(cuadro) {
+    if (!myTurn) {
+        alert("No es tu turno. Espera a que juegue tu oponente.");
+        return;
+    }
+    const btn = document.getElementById("btn" + cuadro);
+    if (btn.value !== "") {
+        alert("Esta casilla ya está ocupada. Elige otra.");
+        return;
+    }
 
-        var letra = document.getElementById("letras");
-        // Agregar las opciones al select
-        letra.options.length = 0; // Limpiar opciones anteriores
-        letra.add(new Option("X", "X"));
-        letra.add(new Option("O", "O"));
+    btn.value = currentRole;
+    socket.emit("jugada", { id: currentRole, id2: cuadro });
+}
 
-        // Se recoge la informacion del socket
-        socket.on('jugada2', function(data) {
-            document.getElementById("btn" + data.id2).value = data.id;
-        });
+// Actualizar tablero con las jugadas recibidas
+socket.on('jugada2', function(data) {
+    document.getElementById("btn" + data.id2).value = data.id;
+});
+
+// Actualizar el turno según lo notificado por el servidor
+socket.on('actualizarTurno', ({ turno }) => {
+    myTurn = currentRole === turno;
+    gameDetails.innerHTML += `<p>Tu turno: <strong>${myTurn ? 'Sí' : 'No'}</strong></p>`;
+});
 
 
 
