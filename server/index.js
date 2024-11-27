@@ -142,11 +142,13 @@ function assignRoles(room) {
         role: game.roles[player1],
         order: startingPlayer === player1 ? 'first' : 'second',
         opponentUsername: gamingusers.get(player2),
+        nameplayer: gamingusers.get(player1),
     });
     io.to(player2).emit('role assigned', {
         role: game.roles[player2],
         order: startingPlayer === player2 ? 'first' : 'second',
         opponentUsername: gamingusers.get(player1),
+        nameplayer: gamingusers.get(player2),
     });
 
     console.log(
@@ -305,7 +307,9 @@ io.on('connection', async (socket) => {
                 io.sockets.emit('anunciarGanador', {
                     ganador: dataS.id,
                     victorias: victorias,
-                    currentRole: dataS.id // o cualquier otra forma de determinar el rol actual
+                    currentRole: dataS.id, // o cualquier otra forma de determinar el rol actual
+                    
+
                 });
                             // Verificar si algún jugador ha alcanzado 3 victorias
                 if (victorias.jugador1 === 3) {

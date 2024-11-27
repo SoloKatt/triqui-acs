@@ -95,8 +95,8 @@
                 <div id="gameContainer" style="width: 40%; justify-content: left;">
                     <!-- <h2>Jugador: <span id="usernameDisplay"></span></h2> -->
                      <!-- Elementos donde mostrarás las victorias -->
-                    <p id="victoriasJugador1">Jugador 1 (X): 0</p>
-                    <p id="victoriasJugador2">Jugador 2 (O): 0</p>
+                    <p id="victoriasJugador1">Jugador (X): 0</p>
+                    <p id="victoriasJugador2">Jugador (O): 0</p>
 
                     <div id="gameDetails"></div> <!-- Información de los jugadores -->
                 </div>
@@ -311,24 +311,16 @@ socket.on('anunciarGanador', function ({ ganador, victorias, currentRole }) {
     // Mensaje de quien ganó la ronda
     alert(`¡El ganador es ${ganador}!`);
     console.log(`CURRENTROLE ---> ${currentRole}`);
-    console.log(`Victorias recibidas: Jugador 1 (X): ${victorias.jugador1} | Jugador 2 (O): ${victorias.jugador2}`);
+    console.log(`Victorias recibidas: Jugador (X): ${victorias.jugador1} | Jugador(O): ${victorias.jugador2}`);
     
     // Mostrar el número de victorias en la interfaz
-    if (ganador === 'X') {
-        console.log(`Jugador 1 (X): ${victorias.jugador1} | Jugador 2 (O): ${victorias.jugador2}`);
         // Actualizar los contadores de victorias en la UI
-        document.getElementById('victoriasJugador1').innerText = `Jugador 1 (X): ${victorias.jugador1}`;
-        document.getElementById('victoriasJugador2').innerText = `Jugador 2 (O): ${victorias.jugador2}`;
-    } else if (ganador === 'O') {
-        console.log(`Jugador 1 (O): ${victorias.jugador1} | Jugador 2 (X): ${victorias.jugador2}`);
-        // Actualizar los contadores de victorias en la UI
-        document.getElementById('victoriasJugador1').innerText = `Jugador 1 (X): ${victorias.jugador1}`;
-        document.getElementById('victoriasJugador2').innerText = `Jugador 2 (O): ${victorias.jugador2}`;
-    }
+        document.getElementById('victoriasJugador1').innerText = `Jugador (X): ${victorias.jugador1}`;
+        document.getElementById('victoriasJugador2').innerText = `Jugador (O): ${victorias.jugador2}`;
 
     // Si uno de los jugadores ha alcanzado 3 victorias, felicitar y reiniciar las victorias
     if (victorias.jugador1 === 3) {
-        alert('¡Jugador 1 (X) ha ganado 3 veces y ha ganado el juego!');
+        alert('¡Jugador (X) ha ganado 3 veces y ha ganado el juego!');
         
         // Reiniciar las victorias a 0 para ambos jugadores
         victorias.jugador1 = 0;
@@ -340,7 +332,7 @@ socket.on('anunciarGanador', function ({ ganador, victorias, currentRole }) {
         // Redirigir a la página de felicitaciones o mostrar un mensaje adicional
         window.location.href = '/felicitaciones.html'; // Aquí puedes cambiar la URL según tu flujo
     } else if (victorias.jugador2 === 3) {
-        alert('¡Jugador 2 (O) ha ganado 3 veces y ha ganado el juego!');
+        alert('¡Jugador (O) ha ganado 3 veces y ha ganado el juego!');
         
         // Reiniciar las victorias a 0 para ambos jugadores
         victorias.jugador1 = 0;
@@ -357,8 +349,8 @@ socket.on('anunciarGanador', function ({ ganador, victorias, currentRole }) {
 // Cliente: actualizar los contadores de victorias cuando el servidor los reinicie
 socket.on('actualizarContadores', function ({ jugador1, jugador2 }) {
     // Actualizar los contadores de victorias en la interfaz
-    document.getElementById('victoriasJugador1').innerText = `Jugador 1 (X): ${jugador1}`;
-    document.getElementById('victoriasJugador2').innerText = `Jugador 2 (O): ${jugador2}`;
+    document.getElementById('victoriasJugador1').innerText = `Jugador (X): ${jugador1}`;
+    document.getElementById('victoriasJugador2').innerText = `Jugador (O): ${jugador2}`;
 });
 
 socket.on('anunciarEmpate', function (data) {
