@@ -37,12 +37,13 @@ await db.execute(`
     )
 `)
 
+let victorias = {
+    jugador1: 0,
+    jugador2: 0
+};
 
-const combinacionesGanadoras = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
-    [0, 4, 8], [2, 4, 6]            // Diagonales
-];
+
+
 let tablero = Array(9).fill(null); // Inicia vacío
     
 app.use(logger('dev'))
@@ -277,7 +278,6 @@ io.on('connection', async (socket) => {
 
     socket.on('jugada', function (dataS) {
         console.log(`turno actual ---> ${turnoActual}`);
-        console.log(`Estado del tablero antes de la jugada: ${JSON.stringify(tablero)}`);
     
         if (dataS.id === turnoActual) {
             tablero[dataS.id2] = dataS.id;  // Almacenar la jugada en el tablero
@@ -285,7 +285,6 @@ io.on('connection', async (socket) => {
             io.sockets.emit('jugada2', dataS);
             console.log(`Jugada de ${dataS.id} en el cuadro ${dataS.id2}`);
             console.log(`turno jugado ---> ${turnoActual}`);
-            console.log(`Estado del tablero DESPUES de la jugada: ${JSON.stringify(tablero)}`);
             // Cambiar el turno al otro jugador
             turnoActual = turnoActual === 'X' ? 'O' : 'X'; 
     
@@ -295,7 +294,46 @@ io.on('connection', async (socket) => {
     
             // Verificar si hay un ganador
             if (verificarGanador(dataS.id)) {
-                io.sockets.emit('anunciarGanador', { ganador: dataS.id });
+                // Incrementar el contador de victorias para el jugador ganador
+                if (dataS.id === 'X') {
+                    victorias.jugador1 += 1;
+                } else {
+                    victorias.jugador2 += 1;
+                }
+            
+                // Emitir el evento 'anunciarGanador' con todos los datos necesarios
+                io.sockets.emit('anunciarGanador', {
+                    ganador: dataS.id,
+                    victorias: victorias,
+                    currentRole: dataS.id // o cualquier otra forma de determinar el rol actual
+                });
+                            // Verificar si algún jugador ha alcanzado 3 victorias
+                if (victorias.jugador1 === 3) {
+                    io.sockets.emit('avisarGanador', { ganador: 'Jugador 1 (X)' });
+                    socket.on('reiniciarContadores', (data) => {
+                        // Reiniciar los contadores en el servidor
+                        victorias.jugador1 = data.jugador1;
+                        victorias.jugador2 = data.jugador2;
+                
+                        // Emitir evento para actualizar los contadores en todos los clientes
+                        io.emit('actualizarContadores', victorias);
+                    });
+                } else if (victorias.jugador2 === 3) {
+                    io.sockets.emit('avisarGanador', { ganador: 'Jugador 2 (O)' });
+                    socket.on('reiniciarContadores', (data) => {
+                        // Reiniciar los contadores en el servidor
+                        victorias.jugador1 = data.jugador1;
+                        victorias.jugador2 = data.jugador2;
+                
+                        // Emitir evento para actualizar los contadores en todos los clientes
+                        io.emit('actualizarContadores', victorias);
+                    });
+                } 
+            
+                // Limpiar el tablero y preparar para la siguiente ronda
+                resetJuego();
+            } else if(esEmpate()) {
+                io.sockets.emit('anunciarEmpate', { mensaje: '¡Es un empate!' });
                 resetJuego();
             }
         } else {
@@ -303,9 +341,19 @@ io.on('connection', async (socket) => {
             console.log(`se repite turno ---> ${turnoActual}`);
         }
     });
+
+    function esEmpate() {
+        // Comprobar si todas las casillas están llenas sin ganador
+        return tablero.every(casilla => casilla !== null);
+    }
     
     // Función para verificar combinaciones ganadoras
     function verificarGanador(ficha) {
+        const combinacionesGanadoras = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
+            [0, 4, 8], [2, 4, 6]  // Diagonales
+        ];
         return combinacionesGanadoras.some(combinacion => 
             combinacion.every(index => tablero[index] === ficha)
         );
@@ -314,9 +362,12 @@ io.on('connection', async (socket) => {
     // Función para reiniciar el juego
     function resetJuego() {
         tablero = Array(9).fill(null); // Reiniciar el tablero
-
+        io.sockets.emit('reiniciarJuego', { tablero, turnoActual });
+        io.sockets.emit('actualizarTablero', { tablero: tablero });
         // turnoActual = 'X'; // O iniciar aleatoriamente
     }
+    
+
 
 });
 
@@ -335,3 +386,9 @@ app.get('/', (req, res) => {
 server.listen(port, () => {
     console.log(`Server running on port ${port}`)
 })
+
+// En el servidor, por ejemplo con Express:
+app.get('/felicitaciones', (req, res) => {
+    const jugador = req.query.jugador;  // Obtener el jugador de la URL
+    res.sendFile(process.cwd() + '/client/felicitaciones.html')
+});

@@ -94,6 +94,10 @@
                 </div>
                 <div id="gameContainer" style="width: 40%; justify-content: left;">
                     <!-- <h2>Jugador: <span id="usernameDisplay"></span></h2> -->
+                     <!-- Elementos donde mostrarás las victorias -->
+                    <p id="victoriasJugador1">Jugador 1 (X): 0</p>
+                    <p id="victoriasJugador2">Jugador 2 (O): 0</p>
+
                     <div id="gameDetails"></div> <!-- Información de los jugadores -->
                 </div>
             </div>
@@ -220,7 +224,7 @@
 
         
         // Asignación de roles y detalles del juego
-socket.on('role assigned', ({ role, order, opponentUsername }) => {
+socket.on('role assigned', ({ role, order, opponentUsername}) => {
     currentRole = role;
     myTurn = order === 'first';
     gameDetails.innerHTML = `
@@ -258,9 +262,6 @@ socket.on('actualizarTurno', ({ turno }) => {
     gameDetails.innerHTML += `<p>Tu turno: <strong>${myTurn ? 'Sí' : 'No'}</strong></p>`;
 });
 
-
-
-
         //---------------------------------------------------------------------------------------------
     
         // Manejar clics en el tablero
@@ -284,15 +285,86 @@ socket.on('actualizarTurno', ({ turno }) => {
     
         // Fin del juego
         socket.on('game over', ({ winner }) => {
-            if (winner === currentRole) showMessage('¡Ganaste!');
-            else if (!winner) showMessage('Es un empate.');
-            else showMessage('Perdiste.');
-            triquiBoard.style.pointerEvents = 'none';
+            // if (winner === currentRole) showMessage('¡Ganaste!');
+            // // else if (!winner) showMessage('Es un empate.');
+            // else showMessage('Perdiste.');
+            // triquiBoard.style.pointerEvents = 'none';
         });
 
         socket.on('anunciarGanador', ({ ganador }) => {
             alert(`¡${ganador} ha ganado el juego!`);
         });
+
+socket.on('reiniciarJuego', function ({ tablero, turnoActual }) {
+    // Reiniciar el tablero visualmente en el cliente
+    // Aquí puedes recorrer los botones y limpiarlos:
+    for (let i = 0; i < tablero.length; i++) {
+        document.getElementById("btn" + i).value = "";  // Limpiar cada botón
+    }
+
+    // Mostrar el nuevo turno
+    document.getElementById('turno').innerText = `Es el turno de: ${turnoActual}`;
+});
+
+// Cliente: mostrar el número de victorias
+socket.on('anunciarGanador', function ({ ganador, victorias, currentRole }) {
+    // Mensaje de quien ganó la ronda
+    alert(`¡El ganador es ${ganador}!`);
+    console.log(`CURRENTROLE ---> ${currentRole}`);
+    console.log(`Victorias recibidas: Jugador 1 (X): ${victorias.jugador1} | Jugador 2 (O): ${victorias.jugador2}`);
+    
+    // Mostrar el número de victorias en la interfaz
+    if (ganador === 'X') {
+        console.log(`Jugador 1 (X): ${victorias.jugador1} | Jugador 2 (O): ${victorias.jugador2}`);
+        // Actualizar los contadores de victorias en la UI
+        document.getElementById('victoriasJugador1').innerText = `Jugador 1 (X): ${victorias.jugador1}`;
+        document.getElementById('victoriasJugador2').innerText = `Jugador 2 (O): ${victorias.jugador2}`;
+    } else if (ganador === 'O') {
+        console.log(`Jugador 1 (O): ${victorias.jugador1} | Jugador 2 (X): ${victorias.jugador2}`);
+        // Actualizar los contadores de victorias en la UI
+        document.getElementById('victoriasJugador1').innerText = `Jugador 1 (X): ${victorias.jugador1}`;
+        document.getElementById('victoriasJugador2').innerText = `Jugador 2 (O): ${victorias.jugador2}`;
+    }
+
+    // Si uno de los jugadores ha alcanzado 3 victorias, felicitar y reiniciar las victorias
+    if (victorias.jugador1 === 3) {
+        alert('¡Jugador 1 (X) ha ganado 3 veces y ha ganado el juego!');
+        
+        // Reiniciar las victorias a 0 para ambos jugadores
+        victorias.jugador1 = 0;
+        victorias.jugador2 = 0;
+
+        // Emitir evento al servidor para reiniciar los contadores en todas las instancias
+        socket.emit('reiniciarContadores', { jugador1: victorias.jugador1, jugador2: victorias.jugador2 });
+
+        // Redirigir a la página de felicitaciones o mostrar un mensaje adicional
+        window.location.href = '/felicitaciones.html'; // Aquí puedes cambiar la URL según tu flujo
+    } else if (victorias.jugador2 === 3) {
+        alert('¡Jugador 2 (O) ha ganado 3 veces y ha ganado el juego!');
+        
+        // Reiniciar las victorias a 0 para ambos jugadores
+        victorias.jugador1 = 0;
+        victorias.jugador2 = 0;
+
+        // Emitir evento al servidor para reiniciar los contadores en todas las instancias
+        socket.emit('reiniciarContadores', { jugador1: victorias.jugador1, jugador2: victorias.jugador2 });
+
+        // Redirigir a la página de felicitaciones o mostrar un mensaje adicional
+        window.location.href = '/felicitaciones.html'; // Aquí puedes cambiar la URL según tu flujo
+    }
+});
+
+// Cliente: actualizar los contadores de victorias cuando el servidor los reinicie
+socket.on('actualizarContadores', function ({ jugador1, jugador2 }) {
+    // Actualizar los contadores de victorias en la interfaz
+    document.getElementById('victoriasJugador1').innerText = `Jugador 1 (X): ${jugador1}`;
+    document.getElementById('victoriasJugador2').innerText = `Jugador 2 (O): ${jugador2}`;
+});
+
+socket.on('anunciarEmpate', function (data) {
+    alert(data.mensaje); // Mostrar mensaje de empate
+});
+
     </script>
     
 </body>
