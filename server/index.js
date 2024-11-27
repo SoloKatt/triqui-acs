@@ -124,6 +124,7 @@ const gamingusers = new Map();
 let waitingPlayer = null;
 let players = []
 let games = {}; // Variable global para almacenar las partidas
+let turnoActual;
 
 function assignRoles(room) {
     // Verificar que la partida existe
@@ -142,7 +143,7 @@ function assignRoles(room) {
     // Elegir aleatoriamente quién comienza
     const startingPlayer = Math.random() < 0.5 ? player1 : player2;
     game.currentTurn = startingPlayer;
-
+    
     // Notificar roles y turno inicial a los jugadores
     io.to(player1).emit('role assigned', {
         role: game.roles[player1],
@@ -159,6 +160,16 @@ function assignRoles(room) {
         `Roles asignados en la sala ${room}: ${gamingusers.get(player1)} (${game.roles[player1]}) ` +
         `vs ${gamingusers.get(player2)} (${game.roles[player2]}). Empieza: ${gamingusers.get(startingPlayer)}`
     );
+
+    if (gamingusers.get(startingPlayer) === gamingusers.get(player1)){
+        if(game.roles[player1] === 'X'){
+            turnoActual = 'X'
+        } else { turnoActual = 'O'}
+    } else {
+        if(game.roles[player2] === 'X'){
+            turnoActual = 'X'
+        } else { turnoActual = 'O'}
+    }
 }
 
 io.on('connection', async (socket) => {
@@ -283,10 +294,31 @@ io.on('connection', async (socket) => {
         }
     });
     console.log("jugada");
-    socket.on('jugada', function(dataS) {
+    
+
+socket.on('jugada', function (dataS) {
+    // Verificar si es el turno correcto para el jugador actual
+    
+    console.log(`turno actual ---> ${turnoActual}`)
+
+    if (dataS.id === turnoActual) {
+        // Emitimos la jugada válida a todos los clientes
         io.sockets.emit('jugada2', dataS);
-        console.log("jugada"+dataS.id+"--"+dataS.id2);
-    });
+        console.log(`Jugada de ${dataS.id} en el cuadro ${dataS.id2}`);
+        console.log(`turno jugado ---> ${turnoActual}`)
+        // Cambiar el turno al otro jugador
+        turnoActual = turnoActual === 'X' ? 'O' : 'X'; 
+
+        // Notificamos a todos cuál es el nuevo turno
+        io.sockets.emit('actualizarTurno', { turno: turnoActual });
+        console.log(`nuevo turno ---> ${turnoActual}`)
+    } else {
+
+        console.log(`Turno inválido. No es el turno de ${dataS.id}. Es el turno de ${turnoActual}.`);
+        console.log(`se repite turno ---> ${turnoActual}`)
+    }
+});
+
 });
 
 app.get('/duplicateuser', (req, res) => {
