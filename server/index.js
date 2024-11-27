@@ -37,21 +37,13 @@ await db.execute(`
     )
 `)
 
-function checkWinner(board) {
-    const winningCombinations = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
-        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
-        [0, 4, 8], [2, 4, 6],           // Diagonales
-    ];
 
-    for (const combination of winningCombinations) {
-        const [a, b, c] = combination;
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            return board[a]; // Devuelve 'X' o 'O' como ganador
-        }
-    }
-    return null; // No hay ganador
-}
+const combinacionesGanadoras = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
+    [0, 4, 8], [2, 4, 6]            // Diagonales
+];
+let tablero = Array(9).fill(null); // Inicia vacío
     
 app.use(logger('dev'))
 app.use(express.json())
@@ -280,44 +272,51 @@ io.on('connection', async (socket) => {
         // Alternar el turno
         game.currentTurn = game.players.find((playerId) => playerId !== socket.id);
 
-        // Verificar si alguien ganó o si el juego está completo (empate)
-        const winner = checkWinner(game.board);
-        if (winner || game.board.every((cell) => cell !== '')) {
-            // Finalizar el juego y anunciar al ganador o empate
-            io.to(game.id).emit('game over', { winner });
-        } else {
-            // Enviar la actualización del tablero a ambos jugadores
-            io.to(game.id).emit('update board', {
-                board: game.board,
-                nextTurn: game.roles[game.currentTurn], // El siguiente turno es del jugador contrario
-            });
-        }
     });
     console.log("jugada");
+
+    socket.on('jugada', function (dataS) {
+        console.log(`turno actual ---> ${turnoActual}`);
+        console.log(`Estado del tablero antes de la jugada: ${JSON.stringify(tablero)}`);
     
-
-socket.on('jugada', function (dataS) {
-    // Verificar si es el turno correcto para el jugador actual
+        if (dataS.id === turnoActual) {
+            tablero[dataS.id2] = dataS.id;  // Almacenar la jugada en el tablero
+            // Emitimos la jugada válida a todos los clientes
+            io.sockets.emit('jugada2', dataS);
+            console.log(`Jugada de ${dataS.id} en el cuadro ${dataS.id2}`);
+            console.log(`turno jugado ---> ${turnoActual}`);
+            console.log(`Estado del tablero DESPUES de la jugada: ${JSON.stringify(tablero)}`);
+            // Cambiar el turno al otro jugador
+            turnoActual = turnoActual === 'X' ? 'O' : 'X'; 
     
-    console.log(`turno actual ---> ${turnoActual}`)
-
-    if (dataS.id === turnoActual) {
-        // Emitimos la jugada válida a todos los clientes
-        io.sockets.emit('jugada2', dataS);
-        console.log(`Jugada de ${dataS.id} en el cuadro ${dataS.id2}`);
-        console.log(`turno jugado ---> ${turnoActual}`)
-        // Cambiar el turno al otro jugador
-        turnoActual = turnoActual === 'X' ? 'O' : 'X'; 
-
-        // Notificamos a todos cuál es el nuevo turno
-        io.sockets.emit('actualizarTurno', { turno: turnoActual });
-        console.log(`nuevo turno ---> ${turnoActual}`)
-    } else {
-
-        console.log(`Turno inválido. No es el turno de ${dataS.id}. Es el turno de ${turnoActual}.`);
-        console.log(`se repite turno ---> ${turnoActual}`)
+            // Notificamos a todos cuál es el nuevo turno
+            io.sockets.emit('actualizarTurno', { turno: turnoActual });
+            console.log(`nuevo turno ---> ${turnoActual}`);
+    
+            // Verificar si hay un ganador
+            if (verificarGanador(dataS.id)) {
+                io.sockets.emit('anunciarGanador', { ganador: dataS.id });
+                resetJuego();
+            }
+        } else {
+            console.log(`Turno inválido. No es el turno de ${dataS.id}. Es el turno de ${turnoActual}.`);
+            console.log(`se repite turno ---> ${turnoActual}`);
+        }
+    });
+    
+    // Función para verificar combinaciones ganadoras
+    function verificarGanador(ficha) {
+        return combinacionesGanadoras.some(combinacion => 
+            combinacion.every(index => tablero[index] === ficha)
+        );
     }
-});
+    
+    // Función para reiniciar el juego
+    function resetJuego() {
+        tablero = Array(9).fill(null); // Reiniciar el tablero
+
+        // turnoActual = 'X'; // O iniciar aleatoriamente
+    }
 
 });
 

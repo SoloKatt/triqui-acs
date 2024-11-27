@@ -74,19 +74,20 @@
                     <table>
                         <tr>
                             <td>
+                                <input type=button value="" name="btn0" id="btn0" class="botones" onclick="jugada(0)"/>
                                 <input type=button value="" name="btn1" id="btn1" class="botones" onclick="jugada(1)"/>
                                 <input type=button value="" name="btn2" id="btn2" class="botones" onclick="jugada(2)"/>
-                                <input type=button value="" name="btn3" id="btn3" class="botones" onclick="jugada(3)"/>
                             </td>
                             <td>
+                                <input type=button value="" name="btn3" id="btn3" class="botones" onclick="jugada(3)"/>
                                 <input type=button value="" name="btn4" id="btn4" class="botones" onclick="jugada(4)"/>
                                 <input type=button value="" name="btn5" id="btn5" class="botones" onclick="jugada(5)"/>
-                                <input type=button value="" name="btn6" id="btn6" class="botones" onclick="jugada(6)"/>
                             </td>
                             <td>
+                                <input type=button value="" name="btn6" id="btn6" class="botones" onclick="jugada(6)"/>
                                 <input type=button value="" name="btn7" id="btn7" class="botones" onclick="jugada(7)"/>
                                 <input type=button value="" name="btn8" id="btn8" class="botones" onclick="jugada(8)"/>
-                                <input type=button value="" name="btn9" id="btn9" class="botones" onclick="jugada(9)"/>
+                                
                             </td>
                         </tr>
                     </table>
@@ -287,6 +288,10 @@ socket.on('actualizarTurno', ({ turno }) => {
             else if (!winner) showMessage('Es un empate.');
             else showMessage('Perdiste.');
             triquiBoard.style.pointerEvents = 'none';
+        });
+
+        socket.on('anunciarGanador', ({ ganador }) => {
+            alert(`¡${ganador} ha ganado el juego!`);
         });
     </script>
     
